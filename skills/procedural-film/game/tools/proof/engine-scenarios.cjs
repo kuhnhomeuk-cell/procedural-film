@@ -776,7 +776,11 @@ TESTS.API = (G, t) => {
   const TLx = G.FILM && G.FILM.TIMELINE;
   const wantLen = TLx && TLx.duration > 0 ? Math.round(TLx.duration * (TLx.fps || 60)) : 600;
   t.ok(S.source === 'attract' && S.stale === false && FG.filmLength() === wantLen && S.length === wantLen, `sim(): the attract tape, fingerprint current (${S.source}, stale ${S.stale}, length ${S.length}, want ${wantLen})`);
-  t.eq(FG.fingerprint(S), rec.fp, 'sim() replays the recording exactly');
+  // the contract, independent of the level: sim() is the tape fed from frame 0 and then no button
+  // held to the film's end, so it must match a fresh record() of the same inputs over the same length
+  const recFull = FG.record(tape, wantLen);
+  t.eq(FG.fingerprint(S), recFull.fp, 'sim() replays the recording exactly (a fresh run of the same inputs over the film length)');
+  if (wantLen === 600) t.eq(recFull.fp, rec.fp, 'the recording fingerprint is stable across runs');
   GAME.ATTRACT = saved;
 };
 

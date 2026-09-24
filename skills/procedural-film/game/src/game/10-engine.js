@@ -105,6 +105,8 @@
     return d;
   }
   const mainOf = (def) => def.main || def.id;
+  // the world label the first level shows (its def.world, else its id)
+  const firstWorld = () => { const d = (GAME.GAME_DEFS || {})[firstLevel()]; return (d && d.world) || firstLevel(); };
   // the level the title screen shows: the first level's first screen
   function titleDef(W) {
     const G = GAME.GAME_DEFS || {};
@@ -251,7 +253,7 @@
     const W = {
       f: 0, mode: 'title', mt: 0, prev: 0, btn: 0,
       score: 0, coins: 0, lives: 3, top: 0,
-      time: 400, timeT: 0, timerOn: false, world: '1-1',
+      time: 400, timeT: 0, timerOn: false, world: firstWorld(),
       song: null, li: 0, lv: null, cam: 0, p: null,
       items: [], parts: [], pops: [], bumps: [],
       freeze: 0, seq: null, goal: null, pending: 0, ev: [], castleFlag: 0, poleScore: null,
@@ -402,7 +404,7 @@
     const s = W.lv.def.start;
     W.p = newPlayer(s.x, s.y, false);
     W.items = []; W.parts = []; W.pops = []; W.bumps = [];
-    W.world = '1-1';
+    W.world = def.world || def.id;
     W.timerOn = false;
     W.big = false;
     W.score = 0; W.coins = 0; W.lives = 3;

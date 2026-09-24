@@ -38,7 +38,8 @@ const ONLY = typeof args.only === 'string' ? args.only.split(',') : null;
 const FAST = Math.max(1, Math.min(16, Number(args.fast || 8)));
 const want = (g) => !ONLY || ONLY.includes(g);
 // the level order and first level from the game's own config (src/game/00-config.js)
-const CONFIG = require('./proof/harness.cjs').load().GAME.CONFIG;
+const LOADED = require('./proof/harness.cjs').load().GAME;
+const CONFIG = LOADED.CONFIG;
 const FIRST = CONFIG.firstLevel;
 const LAST = CONFIG.order[CONFIG.order.length - 1];
 
@@ -218,9 +219,18 @@ async function g2g3(browser, url) {
     await t.until(() => FILM.shell.stats.state === 'paused' && !FILM.shell.proof.feeding, null, 10000);
     await t.steps(5);
     await auditNow();
-    // continue: one life, walk into the first bug
-    await t.page.evaluate((first) => FILM.shell.proof.feed({ opts: { start: first, feel: 'modern', lives: 1 }, rle: '08:1,00:5j,80:ct' }), FIRST);
-    await t.until(() => FILM.shell.stats.mode === 'continue' && !FILM.shell.proof.feeding, null, 20000);
+    // continue: one life, the hero stands still until the first level's clock runs out (or a foe
+    // reaches him first); either death is the last life, so the shell must show the continue screen.
+    // No dependence on the level's layout: only on its clock (a level with no clock fails loudly).
+    const firstTime = ((LOADED.GAME_DEFS || {})[FIRST] || {}).time | 0;
+    if (firstTime <= 0) throw new Error(`continue screen: the first level '${FIRST}' has no clock (time ${firstTime}); the idle-to-time-up death needs time > 0`);
+    const idleFrames = firstTime * 24 + 240; // the HUD clock ticks once every 24 frames (TIMER_FRAMES)
+    await t.page.evaluate(([first, n]) => {
+      FILM.shell.proof.fast(16);
+      return FILM.shell.proof.feed({ opts: { start: first, feel: 'modern', lives: 1 }, rle: '08:1,00:5j,00:' + n.toString(36) });
+    }, [FIRST, idleFrames]);
+    await t.until(() => FILM.shell.stats.mode === 'continue' && !FILM.shell.proof.feeding, null, 90000);
+    await t.page.evaluate(() => FILM.shell.proof.fast(0));
     await t.steps(5);
     await auditNow();
     await t.key('ArrowDown'); // END

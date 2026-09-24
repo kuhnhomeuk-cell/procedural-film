@@ -1,11 +1,13 @@
 ---
 name: procedural-film
-description: Procedural film — turn a subject into a short animated film drawn and scored entirely in JavaScript, in one of three modes: drawn (every pixel computed, zero assets), photo-doodle (real photographs with animated doodles drawn over them) or retro (pixel art on an NES palette with a chip score). Use when the user asks for a procedural film, a short hand-drawn animated film about a subject, a film that doodles on photos, or a retro pixel-art film.
+description: Procedural film — turn a subject into a short animated film drawn and scored entirely in JavaScript, in one of three modes: drawn (every pixel computed, zero assets), photo-doodle (real photographs with animated doodles drawn over them) or retro (pixel art on an NES palette with a chip score). Use when the user asks for a procedural film, a short hand-drawn animated film about a subject, a film that doodles on photos, or a retro pixel-art film. It also makes a retro platformer game: use it when the user asks for a retro platformer game, an NES-style game or a pixel-art game to play in the browser.
 ---
 
 # Procedural film
 
 Turn a topic into a **film**: roughly 30 seconds at 24 fps, every event on a **beat grid** (bpm → beats → frames), every stroke and every audio sample computed in plain browser JavaScript. The deliverable is `dist/<slug>.html` (a self-contained player) plus `exports/<slug>.mp4` and its phone and preview transcodes.
+
+The skill also makes a retro platformer game that plays in the browser. That track is under "Retro game" at the end of this file.
 
 ## Modes — pick one before step 1
 
@@ -29,6 +31,7 @@ This skill packages a proven pipeline. It ships these folders:
 - `foundation/` — the engine and tools, copied into the new project: `src/core.js`, `src/lib.js`, `src/player.js`, `src/music.js` (engine plus a demo score), `src/props.js` (photo-doodle: the shared doodle props), and `tools/` (build, check, snap, render, stubgen, audio analysis, fixtures, and `photos.cjs` + `cutout.py` for photo-doodle). Everything is driven by `src/timeline.js`, so no tool code changes per film.
 - `templates/` — the four planning documents every film starts from, plus, for photo-doodle, `art-bible-photo-doodle.md` (that mode's house style, ready to fill) and `cast.js` (a worked character module to rewrite).
 - `retro/`: the retro kit, copied over `foundation/` for a retro film. It holds `src/pixel.js` (the pixel kit on `FILM.retro`), `src/chip.js` (the NES sound chip), `src/crt.js` (the old TV), the retro fixtures and `tools/audio/melody.cjs`.
+- `game/`: the starter game, copied over `retro/` for a retro game. It is a one-level platformer called ROBOT RUN with its console, levels, sprites, proofs and release tools.
 - `reference/` — read when a step below points at one; the three example images first.
 
 Look first: `reference/example-contact-sheet.jpg` (the whole example film, 24 labelled frames), `reference/example-paper-frame.jpg` and `reference/example-blueprint-frame.jpg` (one full frame of each plate). That density and that finish are the bar.
@@ -209,3 +212,73 @@ ffmpeg -i exports/<slug>.mp4 -c:v libx264 -crf 23 -preset medium -af loudnorm=I=
 Write `exports/<slug>-shots.md` last: one line per shot saying what it shows, so whoever shares the film can caption it.
 
 Done when: master, phone transcode, the HTML file and `exports/<slug>-shots.md` exist, the gate is green, and the final watch-through found nothing to fix.
+
+## Retro game
+
+The same kit makes a side-scrolling platformer that plays in the browser. Every step below is short on purpose. The detail for each one is in `reference/retro-game.md`, and each step names the section to read. Run every command from the project folder.
+
+### G0. Brief
+
+Get a title, a hero and a one-sentence premise from the user. Invent everything else, and say which parts you invented when you confirm the brief.
+
+Done when: the user has confirmed the title, the hero and the premise.
+
+### G1. Setup
+
+Copy `foundation/` into an empty project folder, then `retro/` over it, then `game/` over that. The order matters because a later overlay replaces a file of the same name. Then run `npm --prefix tools install` and `npm --prefix tools exec -- playwright install chromium`. See "Assembly".
+
+Done when: `node tools/gates.cjs` is green on the untouched starter, ROBOT RUN. This proves the toolchain before anything changes.
+
+### G2. Config
+
+Fill in `src/game/00-config.js`: the slug, the title, the hero's name, `saveKey` as `<slug>.save.v1`, the level order and `firstLevel`. Add a legal line when the game borrows a character, logo or brand that belongs to someone else. Copy `templates/game-spec.md` to `docs/` and fill in its blanks. See "The config file".
+
+Done when: the config and `docs/game-spec.md` have no blanks left.
+
+### G3. Art
+
+Write the art bible from `templates/art-bible-retro.md`. Redraw every name listed in `src/manifest.js` in `src/sprites.js`, because the manifest is the contract. See "Sprites".
+
+Done when: `node tools/art-check.cjs` is green and you have looked at a title frame and a gameplay frame. `node tools/site.cjs` renders the title screen to `web/og.png`.
+
+### G4. Levels
+
+Rewrite `src/game/01-levels.js` (the level definitions and `CONFIG.order`) and `tools/proof/levels.data.cjs`. See "Adding a level".
+
+Done when: `node tools/levels-lint.cjs` is green.
+
+### G5. Foes and mechanics
+
+This step is optional, since the starter has one walking foe. A new foe or mechanic goes in through the module seam. See "Adding a foe or mechanic".
+
+Done when: `node tools/proof/engine-scenarios.cjs` is green.
+
+### G6. Routes and tapes
+
+Add each level's route to `tools/proof/programs/routes.cjs` and its program to `tools/proof/programs/`. Run `node tools/proof/levels.cjs --replan` and then `node tools/proof/full.cjs --replan`, and commit the tapes. After every re-plan of the first level, run `node tools/attract.cjs` before any gate. See "The route and the program" and "The tapes".
+
+Done when: `node tools/proof/levels.cjs`, `node tools/proof/full.cjs` and `node tools/proof/determinism.cjs` are green.
+
+### G7. Music and sound effects
+
+Write `src/music.js` on the chip. It needs every song the engine switches to, a `<song>Fast` variant of each level song and an effect for every event that makes a sound. Run `node tools/audio/melody.cjs` and paste its output into the originality record at the top of `src/music.js`. See "Sound".
+
+Done when: `node tools/audio/game-audio.cjs` is green.
+
+### G8. Attract film
+
+Run `node tools/attract.cjs`, then `node tools/render.cjs --out exports/attract.mp4`. Without `--out`, the file is named after the project folder. Watch it, or snap frames from it. See "The attract film".
+
+Done when: you have watched the attract film and found nothing to fix.
+
+### G9. Gates
+
+Done when: `node tools/gates.cjs` is green on all 13 gates and `node tools/deploy.cjs --dry-run` is green. See "The gates".
+
+### G10. Deploy
+
+Deploy only when the user asks. It runs on the user's own signed-in Vercel CLI, and `vercel login` is theirs to run. Then run `node tools/deploy.cjs`, and `node tools/deploy.cjs --redeploy` for later releases. Never deploy on your own initiative. See "Deploy".
+
+Done when: the user has the live address.
+
+Known limits: the camera only scrolls forward, a pipe exit past a token means each token is proven by its own program, and CONTINUE stays greyed out until there is a second level.

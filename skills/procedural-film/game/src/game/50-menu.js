@@ -90,7 +90,8 @@
   // Screens and rows
   // ------------------------------------------------------------------------------------------
   const settings = (env) => (env && env.save && env.save.settings) || {};
-  const reachOf = (env) => (env && env.save && typeof env.save.reach === 'string' ? env.save.reach : '1-1');
+  const firstLevel = () => (GAME.CONFIG && GAME.CONFIG.firstLevel) || ((GAME.CONFIG && GAME.CONFIG.order) || [])[0] || (GAME.GAME_ORDER || [])[0];
+  const reachOf = (env) => (env && env.save && typeof env.save.reach === 'string' ? env.save.reach : firstLevel());
 
   const FEEL = { modern: 'MODERN', nes: 'NES ACCURATE' };
   const ROWS = {
@@ -114,7 +115,7 @@
     switch (state.screen) {
       case 'title': {
         const reach = reachOf(env);
-        const off = reach === '1-1';
+        const off = reach === firstLevel();
         return [
           { id: 'new', label: 'NEW GAME', say: 'New game' },
           { id: 'continue', label: off ? 'CONTINUE' : 'CONTINUE ' + reach, disabled: off, say: 'Continue, world ' + reach },

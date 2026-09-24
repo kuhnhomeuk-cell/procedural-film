@@ -22,7 +22,7 @@ const GAME = G.GAME;
 const M = GAME.menu;
 const B = GAME.BUTTONS;
 const CONFIG = GAME.CONFIG || {};
-const ORDER = CONFIG.order && CONFIG.order.length ? CONFIG.order : ['1-1'];
+const ORDER = CONFIG.order && CONFIG.order.length ? CONFIG.order : [CONFIG.firstLevel];
 
 let fails = 0;
 function check(name, ok, got) {
@@ -40,7 +40,7 @@ function freeze(o) {
 
 function save(over) {
   const s = {
-    v: 1, hi: 12345, reach: '1-1', cleared: false, tokens: Object.fromEntries(ORDER.map((id) => [id, 0])),
+    v: 1, hi: 12345, reach: CONFIG.firstLevel, cleared: false, tokens: Object.fromEntries(ORDER.map((id) => [id, 0])),
     settings: { feel: 'modern', crt: 'on', vol: 8, mute: false, input: false, flash: 'full', keys: clone(M.DEFAULT_KEYS) },
   };
   return Object.assign(s, over || {});
@@ -71,7 +71,7 @@ const row = (st, env) => M.items(st, env)[st.sel].id;
 
 // ------------------------------------------------------------------------------------------ title
 {
-  const env = makeEnv({ reach: '1-1' });
+  const env = makeEnv({ reach: CONFIG.firstLevel });
   let s = M.init('title', env);
   const it = M.items(s, env);
   check('title rows', it.map((r) => r.label).join(',') === 'NEW GAME,CONTINUE,OPTIONS' && it[1].disabled === true, it.map((r) => r.label + (r.disabled ? '(off)' : '')).join(','));
