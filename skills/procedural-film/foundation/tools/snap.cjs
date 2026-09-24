@@ -33,7 +33,7 @@ async function main() {
   const src = C.sources({ fixtures, only: args.only ? shotId : null, player: true });
   for (const w of src.warnings) console.log(`[warn] ${w}`);
   const TL = src.timeline;
-  const FPS = C.FPS;
+  const FPS = C.fps(TL);
   const shot = shotId ? TL.shots.find((s) => s.id === shotId) : null;
   if (shotId && !shot) C.die(`no shot '${shotId}'. Ids: ${TL.shots.map((s) => s.id).join(', ')}`);
 

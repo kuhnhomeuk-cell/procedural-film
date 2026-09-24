@@ -10,7 +10,8 @@
 //                  draw in a fresh page) and sequential (drawn straight after the frame before it)
 //   3 sources      no Math.random, Date, performance.now or crypto randomness in src drawing/audio code;
 //                  no must-read text below the safe area (a literal y argument past it; an expression is not read):
-//                  a vertical film reserves the bottom 380 px for the Shorts UI, a square film an 80 px margin,
+//                  a vertical film reserves the bottom 380 px for the Shorts UI, a square film an 80 px bottom
+//                  margin, a landscape film (wider than tall) an 80 px margin on all four sides,
 //                  and a timeline can set safeBottom to say so itself;
 //                  warns on a literal colour outside lib.js (colours come from lib.pal)
 //   4 timeline     coverage, ids, transitions; warns on off-grid hits and cuts, a bpm whose 16ths
@@ -23,7 +24,8 @@
 //
 // Options: --scale s (default 1), --sweep N (every Nth frame, default 4), --det N (add N evenly spaced determinism
 //          frames on top of the per-shot ones, default 0; never fewer than every shot),
-//          --budget ms (fail if the slowest swept frame exceeds this; default: warn above 150 ms)
+//          --budget ms (fail if the slowest swept frame exceeds this; default: warn above 150 ms, or above one
+//          frame period, 1000/fps ms, at 50 fps and up); --sweep defaults to every round(fps/6)th frame (4 at 24 fps)
 'use strict';
 
 const fs = require('fs');
@@ -122,20 +124,25 @@ async function main() {
   const args = C.parseArgs(process.argv.slice(2), ['fixtures']);
   const fixtures = typeof args.fixtures === 'string' ? args.fixtures : !!args.fixtures;
   const scale = args.scale ? Number(args.scale) : 1;
-  const sweepStep = Math.max(1, Number(args.sweep || 4));
   const detExtra = Math.max(0, Math.floor(Number(args.det || 0)));
   const budget = args.budget ? Number(args.budget) : null;
-  const FPS = C.FPS;
   const t0 = Date.now();
 
   const src = C.sources({ fixtures, player: true, lenient: true });
   const TL = src.timeline;
+  const FPS = C.fps(TL);
+  const sweepStep = Math.max(1, Number(args.sweep || Math.max(1, Math.round(FPS / 6))));
+  const warnMs = FPS >= 50 ? 1000 / FPS : 150; // at 50 fps and up the live player must draw each frame in one period
   // the safe area both the static scan and the rendered text check measure against (art bible 1.1):
   // a vertical film keeps clear of the Shorts UI, a square film only needs a margin
   const H = TL.height || 1920;
   const W = TL.width || 1080;
+  const landscape = W > H; // a landscape film keeps an 80 px margin on all four sides
   const safeBottom = TL.raw && TL.raw.safeBottom != null ? Number(TL.raw.safeBottom) : H >= W * 1.5 ? H - 380 : H - 80;
-  console.log(`check ${fixtures ? '(fixtures)' : '(src)'}: ${TL.shots.length} shots, ${TL.duration}s, scale ${scale}`);
+  const safeTop = landscape ? 80 : -Infinity;
+  const safeLeft = landscape ? 80 : -Infinity;
+  const safeRight = landscape ? W - 80 : Infinity;
+  console.log(`check ${fixtures ? '(fixtures)' : '(src)'}: ${TL.shots.length} shots, ${TL.duration}s at ${FPS} fps, scale ${scale}`);
   for (const w of src.warnings) console.log(`[warn] ${w}`);
 
   // ---------------------------------------------------------------- 3 sources (static)
@@ -162,6 +169,7 @@ async function main() {
       stripComments(fs.readFileSync(f, 'utf8')).split('\n').forEach((line, i) => {
         const m = line.match(unsafeText);
         if (m && Number(m[1]) > safeBottom) hits.push(`${C.rel(f)}:${i + 1}  text y ${m[1]} below the safe area (y must be <= ${safeBottom})  | ${line.trim().slice(0, 100)}`);
+        if (m && Number(m[1]) < safeTop) hits.push(`${C.rel(f)}:${i + 1}  text y ${m[1]} above the safe area (y must be >= ${safeTop})  | ${line.trim().slice(0, 100)}`);
       });
     }
     // colours come from lib.pal (art bible 2.2): a literal hex in a scene or timeline file drifts from the palette
@@ -223,10 +231,13 @@ async function main() {
       if (!/illus|schem|blue|none|raw/.test(m)) tlWarnings.push(`shot '${s.id}' mode '${s.mode}' is neither illustrated nor schematic (treated as illustrated)`);
     });
     // every event sits on the beat grid (16ths at the film's bpm), so cuts and hits land together
+    const betweenFrames = (t) => Math.abs(t * FPS - Math.round(t * FPS)) > 1e-4;
     for (const c of TL.cues || []) {
       // the art bible binds pops, cuts and hits to the grid; a swell or ambience may lead into one
       const onGridKind = /^(hit|cut|pop)$/i.test(String(c.kind || ''));
       if (onGridKind && typeof c.t === 'number' && offGrid(c.t)) tlWarnings.push(`cue at ${c.t}s (kind ${c.kind}) is off the 16th-note grid at ${TL.bpm} bpm${c.note ? ` (${String(c.note).slice(0, 40)})` : ''}`);
+      // a hit that lands between two frames is drawn a frame early or late against the sound
+      if (onGridKind && typeof c.t === 'number' && betweenFrames(c.t)) tlWarnings.push(`cue at ${c.t}s (kind ${c.kind}) falls between ${FPS} fps frames (frame ${(c.t * FPS).toFixed(2)})`);
     }
     if (TL.bpm > 0 && 360 % TL.bpm !== 0) tlWarnings.push(`bpm ${TL.bpm}: 16ths do not land on 24 fps frames (360 / bpm must be whole: 72, 90, 120, 180)`);
     const bar = TL.bpm > 0 ? 240 / TL.bpm : 0;
@@ -309,6 +320,12 @@ async function main() {
             if (t.bottom > safeBottom + 1) {
               drawFails.push(`${shot.id} ${label} frame f${f} (T=${(f / FPS).toFixed(3)}): text "${t.str}" reaches y ${Math.round(t.bottom)} (baseline ${Math.round(t.y)}), below the safe area (the ink must end by ${safeBottom})`);
             }
+            if (landscape) {
+              const top = t.top != null ? t.top : t.y - (t.size || 0); // no measured top: the em box above the baseline
+              if (top < safeTop - 1) drawFails.push(`${shot.id} ${label} frame f${f} (T=${(f / FPS).toFixed(3)}): text "${t.str}" starts at y ${Math.round(top)}, above the safe area (the ink must start at ${safeTop} or below)`);
+              if (t.left != null && t.left < safeLeft - 1) drawFails.push(`${shot.id} ${label} frame f${f} (T=${(f / FPS).toFixed(3)}): text "${t.str}" starts at x ${Math.round(t.left)}, left of the safe area (x must be >= ${safeLeft})`);
+              if (t.right != null && t.right > safeRight + 1) drawFails.push(`${shot.id} ${label} frame f${f} (T=${(f / FPS).toFixed(3)}): text "${t.str}" ends at x ${Math.round(t.right)}, right of the safe area (x must be <= ${safeRight})`);
+            }
           }
           const softened = label === 'first' && shot.transitionIn && shot.transitionIn.kind !== 'cut';
           if (!softened && (await flatness(pg, f / FPS)) <= 6) {
@@ -355,8 +372,8 @@ async function main() {
       report(
         6,
         'cost',
-        sweepErr.length ? false : over ? false : max > 150 ? 'WARN' : true,
-        `${sweep.length} frames swept (every ${sweepStep}): median ${median.toFixed(0)}ms, mean ${mean.toFixed(0)}ms, max ${max.toFixed(0)}ms${budget != null ? ` (budget ${budget}ms)` : ''}${max > 150 ? ' - above 150ms' : ''}`,
+        sweepErr.length ? false : over ? false : max > warnMs ? 'WARN' : true,
+        `${sweep.length} frames swept (every ${sweepStep}): median ${median.toFixed(0)}ms, mean ${mean.toFixed(0)}ms, max ${max.toFixed(0)}ms${budget != null ? ` (budget ${budget}ms)` : ''}${max > warnMs ? ` - above ${warnMs.toFixed(warnMs === 150 ? 0 : 1)}ms` : ''}`,
         costDetails
       );
 

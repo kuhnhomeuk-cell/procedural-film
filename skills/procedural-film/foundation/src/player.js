@@ -26,6 +26,7 @@
   }
 
   function start() {
+    if (FILM.TIMELINE) FILM.prepare(); // applies a timeline-declared fps before it is read
     const FPS = FILM.FPS;
     const duration = FILM.DURATION;
     const shotId = params.get('shot');

@@ -10,7 +10,12 @@ const SLUG = path.basename(ROOT).trim().replace(/\s+/g, '-'); // the project fol
 const SRC = path.join(ROOT, 'src');
 const FIX = path.join(__dirname, 'fixtures');
 const TMP = path.join(ROOT, '.tmp');
-const FPS = 24;
+/** A timeline's frame rate: raw FILM.TIMELINE or a normalized wrapper with .raw; 24 when undeclared. */
+function fps(tl) {
+  const raw = tl && tl.raw ? tl.raw : tl || {};
+  return Number(raw.fps) || 24;
+}
+const FPS = fps({}); // drawn films stay at 24
 
 function die(msg) {
   process.stderr.write(`\n[error] ${msg}\n`);
@@ -118,8 +123,39 @@ function loadTimeline(file) {
  *   src/cast.js    the film's recurring characters
  * A zero-asset film simply has none of them.
  */
+// Retro mode adds src/pixel.js, sprites.js, chip.js, crt.js and manifest.js ahead of them, and a
+// game film appends every src/game/*.js (sorted) after them.
+function gameFiles() {
+  const gameDir = path.join(SRC, 'game');
+  return fs.existsSync(gameDir) ? fs.readdirSync(gameDir).filter((f) => f.endsWith('.js')).sort().map((f) => path.join(gameDir, f)) : [];
+}
+
 function preludeFiles() {
-  return ['photos.js', 'props.js', 'cast.js'].map((f) => path.join(SRC, f)).filter((f) => fs.existsSync(f));
+  const opt = ['pixel.js', 'sprites.js', 'chip.js', 'crt.js', 'manifest.js', 'photos.js', 'props.js', 'cast.js'];
+  return [...opt.map((f) => path.join(SRC, f)).filter((f) => fs.existsSync(f)), ...gameFiles()];
+}
+
+/**
+ * The game page's sources: core, lib, the retro kit, every src/game/*.js in sorted order, timeline,
+ * music, shell. No scenes, no film player; every file must exist.
+ */
+function gameSources() {
+  const game = gameFiles();
+  if (!game.length) die('src/game has no .js files; the game page needs the engine.');
+  const files = [
+    ...['core.js', 'lib.js', 'pixel.js', 'sprites.js', 'chip.js', 'crt.js', 'manifest.js'].map((f) => path.join(SRC, f)),
+    ...game,
+    ...['timeline.js', 'music.js', 'shell.js'].map((f) => path.join(SRC, f)),
+  ];
+  const missing = files.filter((f) => !fs.existsSync(f));
+  if (missing.length) die(`the game page is missing ${missing.map(rel).join(', ')}`);
+  let timeline;
+  try {
+    timeline = loadTimeline(path.join(SRC, 'timeline.js'));
+  } catch (e) {
+    die(`src/timeline.js failed to evaluate: ${e.message}`);
+  }
+  return { files, timeline, base: SRC, label: 'src', scenesDir: null, sceneFiles: [], shotFile: () => null, musicFile: path.join(SRC, 'music.js'), warnings: [], problems: [], game: true };
 }
 
 function sources({ fixtures = false, only = null, player = true, needMusic = false, lenient = false } = {}) {
@@ -343,7 +379,10 @@ async function launch(extraArgs = []) {
   } catch (e) {
     die(`playwright is not installed in tools/node_modules (${e.message})`);
   }
-  return chromium.launch({ args: ['--allow-file-access-from-files', '--disable-background-timer-throttling', ...extraArgs] });
+  // Retro films pin WebGL to SwiftShader so every machine hashes the same CRT pixels; FILM_GL=gpu opts out.
+  const gl = fs.existsSync(path.join(SRC, 'crt.js')) && process.env.FILM_GL !== 'gpu' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [];
+  const net = process.env.FILM_NO_NET === '1' ? ['--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost, EXCLUDE 127.0.0.1'] : [];
+  return chromium.launch({ args: ['--allow-file-access-from-files', '--disable-background-timer-throttling', ...gl, ...net, ...extraArgs] });
 }
 
 /**
@@ -497,6 +536,7 @@ module.exports = {
   FIX,
   TMP,
   FPS,
+  fps,
   die,
   parseArgs,
   resolveOut,
@@ -508,6 +548,7 @@ module.exports = {
   cleanupOnExit,
   pageHtml,
   preludeFiles,
+  gameSources,
   launch,
   openPage,
   writeWavFloat,

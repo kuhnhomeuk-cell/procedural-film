@@ -15,7 +15,7 @@
 //   --crf N            x264 quality (default 16)   --preset p   x264 preset (default medium)
 //   --fixtures         use tools/fixtures instead of src
 //
-// Video: libx264, yuv420p (BT.709), crf 16, 24 fps, +faststart. Audio: OfflineAudioContext rendered in the
+// Video: libx264, yuv420p (BT.709), crf 16, at the timeline's fps (C.fps, default 24), +faststart. Audio: OfflineAudioContext rendered in the
 // page at 48 kHz stereo, written as WAV, muxed as AAC 192k.
 'use strict';
 
@@ -40,17 +40,17 @@ function runFfmpeg(args, { stdin = false } = {}) {
   return { proc, done };
 }
 
-function encodeArgs({ input, wav, out, frames, crf, preset }) {
+function encodeArgs({ input, wav, out, frames, crf, preset, fps }) {
   return [
     '-y', '-hide_banner', '-loglevel', 'error',
     ...input,
     '-i', wav,
     '-map', '0:v:0', '-map', '1:a:0',
     '-vf', 'scale=in_range=full:out_range=tv:out_color_matrix=bt709:flags=lanczos+accurate_rnd+full_chroma_int,format=yuv420p,setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709',
-    '-c:v', 'libx264', '-preset', preset, '-crf', String(crf), '-pix_fmt', 'yuv420p', '-r', '24',
+    '-c:v', 'libx264', '-preset', preset, '-crf', String(crf), '-pix_fmt', 'yuv420p', '-r', String(fps),
     '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
     '-c:a', 'aac', '-b:a', '192k', '-ar', String(SR), '-ac', '2',
-    '-t', (frames / C.FPS).toFixed(6),
+    '-t', (frames / fps).toFixed(6),
     '-movflags', '+faststart',
     out,
   ];
@@ -64,13 +64,13 @@ async function main() {
   const workers = Math.max(1, Math.floor(Number(args.workers || 1)));
   const crf = args.crf != null ? Number(args.crf) : 16;
   const preset = typeof args.preset === 'string' ? args.preset : 'medium';
-  const FPS = C.FPS;
   const tStart = Date.now();
   const lap = () => ((Date.now() - tStart) / 1000).toFixed(1) + 's';
 
   const src = C.sources({ fixtures, player: true, needMusic: !silent });
   for (const w of src.warnings) console.log(`[warn] ${w}`);
   const TL = src.timeline;
+  const FPS = C.fps(TL);
   const from = args.from != null ? Number(args.from) : 0;
   const to = args.to != null ? Number(args.to) : TL.duration;
   const f0 = Math.max(0, Math.round(from * FPS));
@@ -87,7 +87,7 @@ async function main() {
   // so a failed render never replaces a previous good export.
   const partial = path.join(work, 'encode' + (path.extname(out) || '.mp4'));
 
-  console.log(`render ${fixtures ? '(fixtures)' : '(src)'}: frames ${f0}..${f1 - 1} (${frames} frames, ${(frames / FPS).toFixed(3)}s) scale ${scale}, ${workers} worker(s)`);
+  console.log(`render ${fixtures ? '(fixtures)' : '(src)'}: frames ${f0}..${f1 - 1} (${frames} frames at ${FPS} fps, ${(frames / FPS).toFixed(3)}s) scale ${scale}, ${workers} worker(s)`);
   console.log(`work folder ${work}`);
 
   const launches = [];
@@ -143,7 +143,7 @@ async function main() {
     };
 
     if (workers === 1) {
-      enc = runFfmpeg(encodeArgs({ input: ['-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-'], wav, out: partial, frames, crf, preset }), { stdin: true });
+      enc = runFfmpeg(encodeArgs({ input: ['-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-'], wav, out: partial, frames, crf, preset, fps: FPS }), { stdin: true });
       const stdin = enc.proc.stdin;
       let pipeErr = null;
       let exited = false;
@@ -185,7 +185,7 @@ async function main() {
       progress(true);
       console.log(`frames rendered in ${((Date.now() - tV) / 1000).toFixed(1)}s, encoding...`);
       const tE = Date.now();
-      enc = runFfmpeg(encodeArgs({ input: ['-framerate', String(FPS), '-start_number', '0', '-i', path.join(work, 'f%06d.png')], wav, out: partial, frames, crf, preset }));
+      enc = runFfmpeg(encodeArgs({ input: ['-framerate', String(FPS), '-start_number', '0', '-i', path.join(work, 'f%06d.png')], wav, out: partial, frames, crf, preset, fps: FPS }));
       await enc.done;
       console.log(`encoded in ${((Date.now() - tE) / 1000).toFixed(1)}s`);
     }
