@@ -104,10 +104,11 @@ function rms(w, a, b) {
 }
 
 (async () => {
-  const args = C.parseArgs(process.argv.slice(2), ['cues', 'bars', 'seam', 'onsets']);
+  const args = C.parseArgs(process.argv.slice(2), ['cues', 'bars', 'seam', 'onsets', 'fixtures']);
+  const fx = typeof args.fixtures === 'string' ? C.resolveOut(args.fixtures) : args.fixtures ? C.FIX : path.join(C.ROOT, 'src');
   const file = C.resolveOut(args._[0] || '.tmp/audio/score.wav');
   const w = readWav(file);
-  const tl = C.loadTimeline(path.join(C.ROOT, 'src', 'timeline.js'));
+  const tl = C.loadTimeline(path.join(fx, 'timeline.js'));
   const offset = args.offset ? Number(args.offset) : 0;
   console.log(`${path.basename(file)}: ${(w.n / w.sr).toFixed(3)} s, ${w.sr} Hz, ${w.chans.length} ch`);
 

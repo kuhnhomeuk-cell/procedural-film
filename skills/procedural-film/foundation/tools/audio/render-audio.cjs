@@ -1,17 +1,24 @@
 // render-audio.cjs : render FILM.audio offline in headless Chromium to a 48 kHz stereo float WAV.
-//   node tools/audio/render-audio.cjs [--start 0] [--end 32] [--out .tmp/audio/score.wav]
+//   node tools/audio/render-audio.cjs [--start 0] [--end 32] [--out .tmp/audio/score.wav] [--fixtures[=<dir>]]
+//   The prelude files (a retro film's chip.js among them) load between the timeline and music.js.
 'use strict';
 const path = require('path');
 const fs = require('fs');
 const C = require('../common.cjs');
 
 (async () => {
-  const args = C.parseArgs(process.argv.slice(2));
+  const args = C.parseArgs(process.argv.slice(2), ['fixtures']);
   const start = args.start != null ? Number(args.start) : 0;
   const SR = 48000;
   const src = path.join(C.ROOT, 'src');
-  const files = ['core.js', 'lib.js', 'timeline.js', 'music.js'].map((f) => path.join(src, f));
-  const tl = C.loadTimeline(path.join(src, 'timeline.js'));
+  const fixtures = typeof args.fixtures === 'string' ? args.fixtures : !!args.fixtures;
+  const base = fixtures ? (typeof fixtures === 'string' ? C.resolveOut(fixtures) : C.FIX) : src;
+  const files = [path.join(src, 'core.js'), path.join(src, 'lib.js'), ...C.preludeFiles(base), path.join(base, 'timeline.js'), path.join(base, 'music.js')];
+  const tl = C.loadTimeline(path.join(base, 'timeline.js'));
+  const chip = files.some((f) => path.basename(f) === 'chip.js');
+  if (chip && (args.mix != null || args.solo != null || args.mute != null)) {
+    console.log('note: --mix, --solo and --mute act on the drawn score buses; a chip score renders whole, so they are ignored');
+  }
   const end = args.end != null ? Number(args.end) : tl.duration;
   const out = C.resolveOut(typeof args.out === 'string' ? args.out : '.tmp/audio/score.wav');
   fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -24,12 +31,14 @@ const C = require('../common.cjs');
     const t0 = Date.now();
     const BUSES = ['drums', 'bass', 'pad', 'keys', 'bells', 'lead', 'sfx', 'amb'];
     let mix = null;
-    if (typeof args.solo === 'string' || typeof args.mute === 'string') {
+    if (chip) {
+      /* a chip score has no buses: render it whole */
+    } else if (typeof args.solo === 'string' || typeof args.mute === 'string') {
       const pick = String(args.solo || args.mute).split(',');
       mix = { bus: {} };
       for (const b of BUSES) if (args.solo ? !pick.includes(b) : pick.includes(b)) mix.bus[b] = 0;
     }
-    if (typeof args.mix === 'string') mix = Object.assign(mix || {}, JSON.parse(args.mix));
+    if (!chip && typeof args.mix === 'string') mix = Object.assign(mix || {}, JSON.parse(args.mix));
     const a = mix
       ? await pg.page.evaluate(
           async ([s, e, sr, m]) => {

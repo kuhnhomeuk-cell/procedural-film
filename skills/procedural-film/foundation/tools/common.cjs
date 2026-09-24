@@ -130,9 +130,12 @@ function gameFiles() {
   return fs.existsSync(gameDir) ? fs.readdirSync(gameDir).filter((f) => f.endsWith('.js')).sort().map((f) => path.join(gameDir, f)) : [];
 }
 
-function preludeFiles() {
+// base: a fixtures directory may supply its own copy of any prelude file (a retro fixture's sprites.js);
+// src stays the source for the rest.
+function preludeFiles(base = SRC) {
   const opt = ['pixel.js', 'sprites.js', 'chip.js', 'crt.js', 'manifest.js', 'photos.js', 'props.js', 'cast.js'];
-  return [...opt.map((f) => path.join(SRC, f)).filter((f) => fs.existsSync(f)), ...gameFiles()];
+  const pick = (f) => (base !== SRC && fs.existsSync(path.join(base, f)) ? path.join(base, f) : path.join(SRC, f));
+  return [...opt.map(pick).filter((f) => fs.existsSync(f)), ...gameFiles()];
 }
 
 /**
@@ -200,10 +203,10 @@ function sources({ fixtures = false, only = null, player = true, needMusic = fal
     if (!shot) die(`--only: no shot with id '${only}' in ${label}/timeline.js. Ids: ${timeline.shots.map((s) => s.id).join(', ')}`);
     const f = shotFile(shot);
     if (!f || !fs.existsSync(f)) die(`shot '${only}': ${problems.find((p) => p.includes(`'${only}'`)) || 'file missing'}`);
-    files = [core, lib, ...preludeFiles(), tlFile, f];
+    files = [core, lib, ...preludeFiles(base), tlFile, f];
   } else {
     if (problems.length && !lenient) die(`timeline problems:\n  - ${problems.join('\n  - ')}`);
-    files = [core, lib, ...preludeFiles(), tlFile, ...sceneFiles];
+    files = [core, lib, ...preludeFiles(base), tlFile, ...sceneFiles];
     const musicFile = path.join(base, 'music.js');
     if (fs.existsSync(musicFile)) files.push(musicFile);
     else if (needMusic) die(`${label}/music.js is missing. The music agent writes it. Pass --silent to render without it.`);
@@ -285,12 +288,30 @@ window.__h = {
         const b = ctx.textBaseline;
         const drop = b === 'top' || b === 'hanging' ? size : b === 'middle' ? size * 0.6 : b === 'bottom' || b === 'ideographic' ? 0 : size * 0.25;
         const yb = y + drop;
-        hits.push({ str: String(str).slice(0, 40), size, y: (m.b * x + m.d * y + m.f) / S, bottom: (m.b * x + m.d * yb + m.f) / S });
+        const yt = yb - size; // the ink's top: one em above its bottom
+        // the ink's horizontal extent from the measured advance and the alignment (measureText paints nothing)
+        const wd = ctx.measureText(String(str)).width;
+        const a = ctx.textAlign;
+        const x0 = a === 'center' ? x - wd / 2 : a === 'right' || a === 'end' ? x - wd : x;
+        const xs = [m.a * x0 + m.c * y + m.e, m.a * (x0 + wd) + m.c * y + m.e];
+        hits.push({
+          str: String(str).slice(0, 40), size,
+          y: (m.b * x + m.d * y + m.f) / S, bottom: (m.b * x + m.d * yb + m.f) / S, top: (m.b * x + m.d * yt + m.f) / S,
+          left: Math.min(xs[0], xs[1]) / S, right: Math.max(xs[0], xs[1]) / S,
+        });
         return orig(str, x, y, ...rest);
       };
       return () => { ctx[name] = orig; };
     };
     const undo = [wrap('fillText'), wrap('strokeText')];
+    // retro: pxtext paints glyphs with fillRect and reports its box (final canvas px) through FILM.__textProbe
+    if (FILM.retro) {
+      const prev = FILM.__textProbe;
+      FILM.__textProbe = (str, x, y, w, h) => {
+        hits.push({ str: String(str).slice(0, 40), size: h / S, y: (y + h) / S, bottom: (y + h) / S, top: y / S, left: x / S, right: (x + w) / S });
+      };
+      undo.push(() => { FILM.__textProbe = prev; });
+    }
     return { stop() { undo.forEach((u) => u()); return hits; } };
   },
   png() {
@@ -360,8 +381,121 @@ window.__h = {
 };
 `;
 
+// Retro helpers (the console palette audit and the TV's proof reads), installed only on a page that
+// loads the retro kit, so a drawn or doodle page runs exactly the harness above.
+const RETRO_HARNESS = `
+Object.assign(window.__h, {
+  // Console-palette audit (check 8): the allowed colours once (default FILM.retro.NES), then the current
+  // frame. With a console frame buffer (FILM.native and FILM.crt) every native pixel is read: the CRT
+  // output is the TV and may hold any colour. Otherwise (or with output=true) every 8th pixel of each
+  // row of the output canvas, the row's phase shifting by one so all 8 columns of an 8x8 pixel are sampled.
+  nesInit(list) {
+    const src = list || (FILM.retro && FILM.retro.NES) || [];
+    this._nes = new Set(Array.from(src).map((h) => parseInt(String(h).replace('#', ''), 16)));
+  },
+  nesAudit(output) {
+    const nb = !output && FILM.native && FILM.crt ? FILM.native() : null;
+    const c = nb ? nb.canvas : FILM.canvas;
+    const g = nb ? nb.ctx : FILM.ctx;
+    const w = c.width, h = c.height;
+    const d = g.getImageData(0, 0, w, h).data;
+    if (!this._nes) this.nesInit();
+    const ok = this._nes;
+    const step = nb ? 1 : 8;
+    let n = 0, bad = 0;
+    const seen = new Map();
+    for (let y = 0; y < h; y++) {
+      for (let x = nb ? 0 : y & 7; x < w; x += step) {
+        const i = (y * w + x) * 4;
+        const v = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2];
+        n++;
+        if (!ok.has(v)) {
+          bad++;
+          if (seen.size < 6 && !seen.has(v)) seen.set(v, x + ',' + y);
+        }
+      }
+    }
+    return { n, bad, source: nb ? 'native' : 'output', colours: [...seen].map(([v, at]) => '#' + v.toString(16).toUpperCase().padStart(6, '0') + ' at ' + at) };
+  },
+  // the TV's mode ('crt' | 'clean') and what actually ran
+  crtMode(mode) {
+    if (window.FILM && FILM.crt && mode) FILM.crt.mode = mode;
+    return this.crtInfo();
+  },
+  crtInfo() {
+    const c = window.FILM && FILM.crt;
+    return c ? { mode: c.mode, backend: c.backend, renderer: c.renderer || null, overlays: c.overlays ? Object.assign({}, c.overlays) : null } : null;
+  },
+  // the proof layers ({ input, caption } booleans), and what they cover
+  crtOverlays(o) {
+    const c = window.FILM && FILM.crt;
+    if (!c) return null;
+    if (o) c.overlays = Object.assign({}, c.overlays, o);
+    return {
+      overlays: Object.assign({}, c.overlays),
+      input: c.inputWindows ? c.inputWindows() : [],
+      caption: c.captionWindow ? c.captionWindow() : null,
+      marks: c.marks ? c.marks() : null,
+    };
+  },
+  // FNV-1a of a region of the output (x, y, w, h in output px)
+  regionHash(x, y, w, h) {
+    const d = FILM.ctx.getImageData(x, y, w, h).data;
+    let h1 = 0x811c9dc5 | 0;
+    for (let i = 0; i < d.length; i++) h1 = Math.imul(h1 ^ d[i], 0x01000193);
+    return (h1 >>> 0).toString(16).padStart(8, '0');
+  },
+  // Luminance of the TV output (check 11): mean and max over the frame, the mean of a centre box of
+  // half-size box px, and the scanline modulation: the strongest DFT amplitude (relative to the mean)
+  // of the centre band's vertical luma profile at a period within 12% of pitch px.
+  lumaStats(box, pitch) {
+    const c = FILM.canvas;
+    const w = c.width, h = c.height;
+    const d = FILM.ctx.getImageData(0, 0, w, h).data;
+    const L = (i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    let sum = 0, max = 0, n = 0;
+    for (let i = 0; i < d.length; i += 16) {
+      const v = L(i);
+      sum += v;
+      if (v > max) max = v;
+      n++;
+    }
+    let cs = 0, cn = 0;
+    for (let y = Math.max(0, (h >> 1) - box); y < Math.min(h, (h >> 1) + box); y++) {
+      for (let x = Math.max(0, (w >> 1) - box); x < Math.min(w, (w >> 1) + box); x++) {
+        const v = L((y * w + x) * 4);
+        cs += v;
+        cn++;
+        if (v > max) max = v;
+      }
+    }
+    const y0 = Math.round(h * 0.4), y1 = Math.round(h * 0.6), x0 = Math.round(w * 0.45), x1 = Math.round(w * 0.55);
+    const prof = [];
+    for (let y = y0; y < y1; y++) {
+      let a = 0, k = 0;
+      for (let x = x0; x < x1; x++, k++) a += L((y * w + x) * 4);
+      prof.push(a / k);
+    }
+    const pm = prof.reduce((a, b) => a + b, 0) / prof.length;
+    let best = { period: 0, amp: 0 };
+    for (let per = pitch * 0.88; per <= pitch * 1.12; per += pitch * 0.005) {
+      let re = 0, im = 0;
+      for (let i = 0; i < prof.length; i++) {
+        re += (prof[i] - pm) * Math.cos((2 * Math.PI * i) / per);
+        im += (prof[i] - pm) * Math.sin((2 * Math.PI * i) / per);
+      }
+      const amp = pm > 0 ? (2 * Math.hypot(re, im)) / prof.length / pm : 0;
+      if (amp > best.amp) best = { period: per, amp };
+    }
+    return { mean: sum / n / 255, max: max / 255, centre: cn ? cs / cn / 255 : 0, scan: best };
+  },
+});
+`;
+const RETRO_KIT = new Set(['pixel.js', 'chip.js', 'crt.js']);
+
 function pageHtml(files, { title = 'tool' } = {}) {
   const tags = files.map((f) => `<script src="file://${encodeURI(f)}"></script>`).join('\n');
+  const retro = files.some((f) => RETRO_KIT.has(path.basename(f)));
   return `<!doctype html>
 <html><head><meta charset="utf-8"><title>${title}</title>
 <style>html,body{margin:0;background:#000}</style>
@@ -369,7 +503,7 @@ function pageHtml(files, { title = 'tool' } = {}) {
 </head><body>
 ${tags}
 <script>${HARNESS}</script>
-</body></html>`;
+${retro ? `<script>${RETRO_HARNESS}</script>\n` : ''}</body></html>`;
 }
 
 async function launch(extraArgs = []) {
