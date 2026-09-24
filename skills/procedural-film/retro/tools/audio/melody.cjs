@@ -4,7 +4,7 @@
 // channel's writes ($4000 volume, $4002/$4003 timer; a $4003 write on a row boundary is a new note) and
 // prints the notes bar by bar as name:rows, converting each timer back to the nearest equal-tempered
 // note (with the tuning error in cents, which the 11-bit timer causes). Rests are r:rows.
-// Loads the project's own src/lib.js, src/timeline.js, src/chip.js and src/music.js in a vm sandbox
+// Loads the project's own src/lib.js, src/timeline.js (when present), src/chip.js and src/music.js in a vm sandbox
 // (the minimal loader lifted from examples/claude-quest-game/tools/audio/host.cjs). Writes nothing.
 'use strict';
 const fs = require('fs');
@@ -20,7 +20,10 @@ const H = {
     vm.createContext(sb);
     for (const f of ['lib.js', 'timeline.js', 'chip.js', 'music.js']) {
       const file = path.join(SRC, f);
-      if (!fs.existsSync(file)) throw new Error(`melody.cjs: ${file} is missing`);
+      if (!fs.existsSync(file)) {
+        if (f === 'timeline.js') continue; // optional: a game project may have no film timeline
+        throw new Error(`melody.cjs: ${file} is missing`);
+      }
       vm.runInContext(fs.readFileSync(file, 'utf8'), sb, { filename: file });
     }
     return sb.FILM;

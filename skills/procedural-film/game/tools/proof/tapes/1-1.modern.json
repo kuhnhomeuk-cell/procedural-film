@@ -1,0 +1,17 @@
+{
+ "opts": {
+  "start": "1-1",
+  "feel": "modern"
+ },
+ "rle": "08:1,00:32,82:3k,83:1,82:i,83:2,82:24,83:3,82:j,83:c,82:2d,83:a,82:1s,83:1,82:i,83:e,82:n,83:3,82:1i,81:s,80:8,81:s,80:l,82:2g,83:1,82:i,83:2,82:1c,40:k,82:e,83:s,82:9,40:a,82:6,83:c,82:h,83:1,82:1f,83:1,82:i,00:b,01:8,00:1e,83:1,82:l,83:2,82:37,83:2,82:j,83:c,82:h,83:1,82:i,83:2,82:u,83:1,82:2z,83:1,82:m,83:1,82:d,83:1,82:o,83:1,82:d,83:1,82:1h,83:1,82:m",
+ "frames": 1641,
+ "fp": "86555375",
+ "meta": {
+  "program": "1-1",
+  "what": "level 1-1 from its start to the beacon, overland, with the deck and stair-gap tokens",
+  "score": 4200,
+  "tokens": 2,
+  "lives": 3,
+  "planned": "tools/proof/levels.cjs --replan"
+ }
+}

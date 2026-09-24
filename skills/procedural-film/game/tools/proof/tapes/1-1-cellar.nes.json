@@ -1,0 +1,17 @@
+{
+ "opts": {
+  "start": "1-1",
+  "feel": "nes"
+ },
+ "rle": "08:1,00:32,82:3k,83:1,82:i,83:2,82:24,83:3,82:j,83:c,82:1x,01:e,00:b,20:1,00:1n,83:s,82:l,83:k,82:c,01:3,00:j,40:1c,00:a,80:h,00:1c,82:c,83:1,82:q,83:1,82:3j,83:1,82:m,83:1,82:d,83:1,82:o,83:1,82:d,83:1,82:1h,83:1,82:m",
+ "frames": 1070,
+ "fp": "c52e76a8",
+ "meta": {
+  "program": "1-1-cellar",
+  "what": "level 1-1 from its start to the beacon by way of the cellar, with the cellar token",
+  "score": 4300,
+  "tokens": 1,
+  "lives": 3,
+  "planned": "tools/proof/levels.cjs --replan"
+ }
+}

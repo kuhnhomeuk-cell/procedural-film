@@ -774,7 +774,7 @@
     defined = true;
     for (const k of Object.keys(cache)) delete cache[k];
   }
-  FILM.chip = { define, compile, midi, mhz, ptimer, ttimer, pt, psw, trill, nz, tthud, gap, cat, SIL, lerp, INST, NDRUM, DDRUM, FPS };
+  FILM.chip = { define, defined: () => defined, compile, midi, mhz, ptimer, ttimer, pt, psw, trill, nz, tthud, gap, cat, SIL, lerp, INST, NDRUM, DDRUM, FPS };
   // ---------------------------------------------------------------- the driver
   // One call per 60 Hz frame: frame(f, events) -> that frame's APU register writes, flat [addr, value, ...].
   function makeDriver(mute) {

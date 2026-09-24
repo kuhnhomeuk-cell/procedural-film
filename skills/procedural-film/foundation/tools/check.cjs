@@ -218,7 +218,8 @@ async function main() {
     );
   }
 
-  // ---------------------------------------------------------------- 10 audio (static, retro)
+  // ---------------------------------------------------------------- 10 audio (static scan + runtime, retro)
+  let audioHits = null;
   // The console's sound chip has two pulses, a triangle, noise and DPCM, and nothing after them:
   // no reverb, no compressor, no echo line, no stereo field.
   if (retro) {
@@ -234,9 +235,6 @@ async function main() {
     const chipFile = path.join(C.SRC, 'chip.js');
     const hits = [];
     if (!mf) hits.push(`${src.label}/music.js is missing: write it and have it call FILM.chip.define({ songs, sfx }).`);
-    else if (!/\bFILM\s*\.\s*chip\s*\.\s*define\s*\(/.test(stripComments(fs.readFileSync(mf, 'utf8')))) {
-      hits.push(`${C.rel(mf)} never calls FILM.chip.define: register the score with FILM.chip.define({ songs, sfx }).`);
-    }
     if (!fs.existsSync(chipFile)) hits.push(`${C.rel(chipFile)} is missing: copy the retro kit's src/chip.js into src.`);
     for (const f of [mf, chipFile]) {
       if (!f || !fs.existsSync(f)) continue;
@@ -247,14 +245,24 @@ async function main() {
         }
       });
     }
+    audioHits = hits;
+  }
+  // gate 10 reports after the page loads: the score must be registered at runtime (FILM.chip.defined()),
+  // however music.js reaches FILM.chip.define.
+  const reportAudio = (definedNow) => {
+    if (!audioHits) return;
+    const hits = audioHits.slice();
+    const mfRel = src.musicFile ? C.rel(src.musicFile) : `${src.label}/music.js`;
+    if (src.musicFile && definedNow !== true) hits.push(`${mfRel} did not register a score in the page (FILM.chip.defined() is not true): call FILM.chip.define({ songs, sfx }).`);
     report(
       10,
       'audio',
       hits.length === 0,
-      hits.length ? `${hits.length} problem(s) holding the score to the console sound chip (no reverb, compressor, delay or panner)` : `${C.rel(mf)} calls FILM.chip.define; it and src/chip.js build no convolver, compressor, delay or panner nodes`,
+      hits.length ? `${hits.length} problem(s) holding the score to the console sound chip (no reverb, compressor, delay or panner)` : `${mfRel} registers a score (FILM.chip.defined() is true); it and src/chip.js build no convolver, compressor, delay or panner nodes`,
       hits
     );
-  }
+    audioHits = null;
+  };
 
   // ---------------------------------------------------------------- 4 timeline (static part)
   const tlProblems = [...src.problems];
@@ -373,6 +381,7 @@ async function main() {
           : `${TL.shots.length} shots cover 0..${TL.duration}s with no gaps or overlaps; every shot's file registers its id`,
         [...tlProblems, ...tlWarnings.map((w) => `warn: ${w}`)]
       );
+      if (retro) reportAudio(await pg.page.evaluate(() => !!(window.FILM && FILM.chip && typeof FILM.chip.defined === 'function' && FILM.chip.defined())).catch(() => false));
       if (!pg.info) {
         report(5, 'draw', false, 'FILM did not initialise in the page', [...loadErr, ...pg.pageErrors]);
         await pg.close();
@@ -778,6 +787,7 @@ async function main() {
   }
 
   results.sort((a, b) => a.n - b.n);
+  reportAudio(false); // the page never loaded: gate 10 still reports, as a failure
   const failed = results.filter((r) => r.ok === false);
   console.log('\nsummary');
   for (const r of results) console.log(`  [${r.tag}] ${r.n} ${r.name}: ${r.summary}`);
