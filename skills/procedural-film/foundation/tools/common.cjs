@@ -138,6 +138,13 @@ function preludeFiles(base = SRC) {
   return [...opt.map(pick).filter((f) => fs.existsSync(f)), ...gameFiles()];
 }
 
+// music.js falls back to src like the prelude files: a fixtures dir without its own music.js uses
+// src/music.js. The timeline and scenes always come from the fixtures dir.
+function musicPath(base) {
+  const own = path.join(base, 'music.js');
+  return base !== SRC && !fs.existsSync(own) && fs.existsSync(path.join(SRC, 'music.js')) ? path.join(SRC, 'music.js') : own;
+}
+
 /**
  * The game page's sources: core, lib, the retro kit, every src/game/*.js in sorted order, timeline,
  * music, shell. No scenes, no film player; every file must exist.
@@ -207,13 +214,13 @@ function sources({ fixtures = false, only = null, player = true, needMusic = fal
   } else {
     if (problems.length && !lenient) die(`timeline problems:\n  - ${problems.join('\n  - ')}`);
     files = [core, lib, ...preludeFiles(base), tlFile, ...sceneFiles];
-    const musicFile = path.join(base, 'music.js');
+    const musicFile = musicPath(base);
     if (fs.existsSync(musicFile)) files.push(musicFile);
     else if (needMusic) die(`${label}/music.js is missing. The music agent writes it. Pass --silent to render without it.`);
     else warnings.push(`${label}/music.js is missing (no audio)`);
     if (player) files.push(path.join(SRC, 'player.js'));
   }
-  const musicFile = path.join(base, 'music.js');
+  const musicFile = musicPath(base);
   return {
     files,
     timeline,

@@ -47,6 +47,14 @@ The plan every agent works from. Fill each section; the guidance in *italics* is
 
 *e.g. the egg profile as half-widths by y, a polyline, an arc with centre and radius, a map projection with named anchor points.*
 
+**retro:** *the shared geometry is four tables, counted in frames at 60 fps and in native pixels (320x180).*
+
+- *G1: HUD state per shot. Score, coins, lives and time at each shot start, copied exactly. Score and coins never go down.*
+- *G2: hero world-x at each shot start, so the run stays continuous across cuts (for example speed 72 px/s).*
+- *G3: fixed landmarks. The world-x of each pipe, block and flag, and the camera x of any fixed shot.*
+- *G4: jump specs. Apex height h in px and air time A in frames for each jump.*
+- *Pick the bpm so a chip row lands on a frame. At chip speed s (frames per row) with 16th-note rows at 60 fps, bpm = 900/s: speed 6 is 150, speed 8 is 112.5, speed 10 is 90.*
+
 ## Shots
 
 *One entry per shot, identical structure, separated by `---`:*
@@ -97,6 +105,9 @@ T <start> to <end>, <mode>, <transition in>.
 FILM.TIMELINE = {
   title: '<film title>',
   bpm: 120, duration: 32, fps: 24, width: 1080, height: 1920,   // photo-doodle: height 1080 (square)
+  // retro: fps: 60, width: 1920, height: 1080, bpm: 900 / chip speed (speed 8 = 112.5), and
+  // retro: { native: [320, 180], present: 'crt', crt: { caption: 'TEST CARD', powerOn: [150, 200], powerOff: [201, 213] } },
+  // crt is optional; powerOn and powerOff are global frame windows
   shots: [
     {
       id: 'eclosion',
@@ -113,6 +124,8 @@ FILM.TIMELINE = {
   cues: [
     { t: 0.5, kind: 'hit', note: 'Wing slam: downward whoosh and sub drop; motif D5 F#5 A5 E5 starts on 8ths' },
     // kinds: hit | sfx | cut | swell — the human-readable score spec; music.js implements them at these times
+    // retro: the chip score starts with { t: 0, kind: 'song', id: '<song id>', section: 'a' },
+    // and effects are short named cues such as { t: 1, kind: 'blip' } or { t: 2.5, kind: 'thud' }
   ],
 };
 ```
