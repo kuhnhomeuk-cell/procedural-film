@@ -105,7 +105,7 @@
     return w;
   }
   (function buildDmc() {
-    const noise = lib.rng('claude-quest-dmc');
+    const noise = lib.rng('retro-dmc');
     const kick = dmcSynth(15, 0.11, (t, ph) => {
       const env = t < 0.0008 ? t / 0.0008 : Math.exp(-(t - 0.0008) / 0.042);
       const click = t < 0.002 ? (noise() * 2 - 1) * 12 * (1 - t / 0.002) : 0;

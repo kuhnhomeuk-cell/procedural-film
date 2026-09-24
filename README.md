@@ -2,7 +2,9 @@
 
 ![Six frames from the butterfly-life film, alternating hand-inked paper shots and navy blueprint shots](media/banner.jpg)
 
-An agent skill that turns a topic into a 30-second vertical film.
+An agent skill that turns a topic into a short film or a small game.
+It makes drawn and photo-doodle vertical films, retro pixel-art films at 60 fps, and a playable NES-style platformer.
+The platformer starts from a starter game called ROBOT RUN and deploys to your own Vercel account.
 Every pixel is drawn in vanilla JavaScript on a canvas and every sound is synthesised in Web Audio, so the film ships with zero media assets.
 The output is one self-contained HTML player plus MP4 exports.
 
@@ -15,7 +17,7 @@ The reference film is `examples/butterfly-life`, the life cycle of a monarch but
 
 | Path | Contents |
 |---|---|
-| `skills/procedural-film/` | The skill. `SKILL.md` is the pipeline, `foundation/` is the engine and tools copied into each new film, `templates/` holds the four planning documents, `reference/` holds the shot-type index, scene and music guides, and frames from the example as the visual target. |
+| `skills/procedural-film/` | The skill. `SKILL.md` is the pipeline, `foundation/` is the engine and tools copied into each new film, `retro/` adds the pixel-art engine and sound chip, `game/` holds the ROBOT RUN starter, `templates/` holds the four planning documents, `reference/` holds the shot-type index, scene and music guides, and frames from the example as the visual target. |
 | `examples/butterfly-life/` | The butterfly film as the skill produces it: planning docs, source, tools, the HTML player and the phone MP4. |
 
 ## Claude Quest: a game on the same engine
@@ -29,8 +31,8 @@ Play the game at https://claude-quest-nu.vercel.app with a keyboard, a gamepad o
 | `examples/claude-quest-v2/` | The film rebuilt as one continuous run of a real game engine, played from a recorded controller tape, on a simulated CRT with an emulated NES sound chip. The 720p cut is in `exports/`. |
 | `examples/claude-quest-game/` | The playable game with four levels and a boss fight. Its bots replay a controller tape through every level to prove each one can be finished, and its gates run before every deploy. |
 
-These three are worked examples to study and reuse.
-The skill builds vertical films and does not build these, so a new pixel-art film or game means adapting their source, by hand or with your agent.
+These three are the worked examples the retro mode was built from.
+Ask for a retro film or a game and the skill starts from its own retro engine and the ROBOT RUN starter, not from these folders.
 
 Claude Quest is an unofficial fan project, not affiliated with or endorsed by Anthropic.
 The art, music and levels are original; the look borrows the grammar of 1985 platformers.
@@ -40,6 +42,7 @@ The art, music and levels are original; the look borrows the grammar of 1985 pla
 - Node.js 20 or newer
 - ffmpeg on the `PATH`
 - Chromium for Playwright, installed after the `npm install` below with `npx --prefix examples/butterfly-life/tools playwright install chromium`
+- The Vercel CLI, only to deploy a game
 - An agent that runs skills and dispatches parallel subagents, for example Claude Code
 
 ## Install the skill

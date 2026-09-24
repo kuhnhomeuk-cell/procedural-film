@@ -1,10 +1,10 @@
 // game/10-engine.js : the console program. One step function runs everything the cartridge does in
-// a 60 Hz frame: the title, the lives screens, the levels (SMB-grade platformer physics on a 16 px
+// a 60 Hz frame: the title, the lives screens, the levels (classic platformer physics on a 16 px
 // tile grid), the goal (the beacon pole, the walk into the goal house, the tally and fireworks), the
 // clear card and the final card. Live play (FILM.game.create) and the attract tape (GAME.ATTRACT,
 // src/game/21-attract.js) both drive this same step(). Owner: game.
 //
-// Units: game px in the native 320x180 frame; velocities in px per frame. The SMB-style constants
+// Units: game px in the native 320x180 frame; velocities in px per frame. The constants
 // are written in 1/4096 px (Q(0x1900) = 1.5625 px/f), all exactly representable, so the simulation
 // is bit-exact in any JS engine. No Math.random: nothing here is random.
 //
