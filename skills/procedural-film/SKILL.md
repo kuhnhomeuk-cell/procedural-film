@@ -28,7 +28,7 @@ A retro film works the same way. Its timeline declares `width: 1920, height: 108
 
 This skill packages a proven pipeline. It ships these folders:
 
-- `foundation/` — the engine and tools, copied into the new project: `src/core.js`, `src/lib.js`, `src/player.js`, `src/music.js` (engine plus a demo score), `src/props.js` (photo-doodle: the shared doodle props), and `tools/` (build, check, snap, render, stubgen, audio analysis, fixtures, and `photos.cjs` + `cutout.py` for photo-doodle). Everything is driven by `src/timeline.js`, so no tool code changes per film.
+- `foundation/` — the engine and tools, copied into the new project: `src/core.js`, `src/lib.js`, `src/player.js`, `src/music.js` (engine plus a demo score), `src/props.js` (photo-doodle: the shared doodle props), and `tools/` (build, check, snap, render, stubgen, `motion` (the motion meter), audio analysis, fixtures, and `photos.cjs` + `cutout.py` for photo-doodle). Everything is driven by `src/timeline.js`, so no tool code changes per film.
 - `templates/` — the four planning documents every film starts from, plus, for photo-doodle, `art-bible-photo-doodle.md` (that mode's house style, ready to fill) and `cast.js` (a worked character module to rewrite).
 - `retro/`: the retro kit, copied over `foundation/` for a retro film. It holds `src/pixel.js` (the pixel kit on `FILM.retro`), `src/chip.js` (the NES sound chip), `src/crt.js` (the old TV), the retro fixtures and `tools/audio/melody.cjs`.
 - `game/`: the starter game, copied over `retro/` for a retro game. It is a one-level platformer called ROBOT RUN with its console, levels, sprites, proofs and release tools.
@@ -132,13 +132,13 @@ Done when: a single frame shows every character in every pose it needs, and the 
 
 ### 4. Storyboard
 
-Read `reference/shot-types.md` for the shot types the example film proves, then fill `docs/storyboard.md` from the template: logline; numbers (pick a bpm, then beat = 60/bpm seconds and the duration lands in whole bars); summary table; acts mapped to bars; a shared-geometry table for every shape that survives a **match cut**; then one entry per shot — 1 to 3 seconds each, boundaries on the beat grid, plates alternating — with all eight subsections, the Sound cues timestamped on the grid.
+Read `reference/shot-types.md` for the shot types the example film proves and `reference/motion.md` for what makes a shot move well, then fill `docs/storyboard.md` from the template: logline; numbers (pick a bpm, then beat = 60/bpm seconds and the duration lands in whole bars); summary table; acts mapped to bars; a shared-geometry table for every shape that survives a **match cut**; then one entry per shot — 1 to 3 seconds each, boundaries on the beat grid, plates alternating — with all eight subsections, the Sound cues timestamped on the grid. Each Motion subsection opens with the shot's verb, its peak frame and its afterlife (`reference/motion.md` §1), and the film alternates fast-dense and slow-sparse shots.
 
 **photo-doodle:** the summary table also names, per shot, the photo id, the paper tint and **what the object becomes** — that last column is the film. "The teapot, with steam" is not an idea; "the teapot is the rest stop, and its steam becomes a face that looks at him" is. Add a per-shot position for the hero too, so the character advances across the film instead of standing in the same place in every frame.
 
 **retro:** the shared geometry is the four tables G1 to G4 in the storyboard template, counted in frames at 60 fps and in native pixels: HUD state per shot, hero world-x at each shot start, fixed landmarks, and jump specs. Pick the bpm from the chip speed, bpm = 900/speed (speed 8 is 112.5), so every row lands on a frame. The duration is a whole number of bars. A bar is 16 rows times the chip speed in frames: speed 6 is 1.6 s, speed 8 is 2.133 s, speed 9 is 2.4 s and speed 10 is 2.667 s. Pick the speed whose bars fill the length exactly, so a 12 s film is 5 bars at speed 9. Write "None" under each shot's Overlays subsection, because retro has none. The safe area is 8 native pixels on every side (x 48 to 1872, y 48 to 1032 at output size).
 
-Done when: the shots tile [0, duration] exactly, with no gaps or overlaps, every shot has all eight subsections, every match-cut shape has a shared-geometry table, and the doc survives a self-review with a critic's eye: every number in the prose matches the tables (beat arithmetic, act boundaries), and no must-read content sits outside the safe area (x 60–940, y 220–1540 vertical; x 60–1020, y 70–1000 square) — arithmetic included. Storyboard errors compound into every scene; this is the cheapest moment to catch them.
+Done when: the shots tile [0, duration] exactly, with no gaps or overlaps, every shot has all eight subsections, every match-cut shape has a shared-geometry table, every shot names a verb, a peak on a beat with a cue under it and what moves after the peak, and the doc survives a self-review with a critic's eye: every number in the prose matches the tables (beat arithmetic, act boundaries), and no must-read content sits outside the safe area (x 60–940, y 220–1540 vertical; x 60–1020, y 70–1000 square) — arithmetic included. Storyboard errors compound into every scene; this is the cheapest moment to catch them.
 
 ### 5. Timeline
 
@@ -156,7 +156,7 @@ Done when: the gate is green and the draft MP4 shows every shot in order, every 
 
 ### 7. Scenes
 
-One agent per scene file — file ownership is law (docs/CONTRACT.md). Each scene agent reads `reference/scene-anatomy.md`, its storyboard entry, the art bible and the shared geometry, then writes `src/scenes/NN-<id>.js`, snaps a contact sheet (`node tools/snap.cjs --shot <id> --samples 6 --sheet`) and looks at every frame, iterating until the sheet is on-brief. `snap --only` renders one shot while sibling files are half-written, so scene agents run in parallel freely.
+One agent per scene file — file ownership is law (docs/CONTRACT.md). Each scene agent reads `reference/scene-anatomy.md`, `reference/motion.md`, its storyboard entry, the art bible and the shared geometry, then writes `src/scenes/NN-<id>.js`, snaps a contact sheet (`node tools/snap.cjs --shot <id> --samples 6 --sheet`) and looks at every frame, iterating until the sheet is on-brief. A contact sheet shows poses, not motion: the agent also snaps the six consecutive frames around its peak (`--times` from one frame before) to see the anticipation, the hit and the settle, and runs `node tools/motion.cjs --shot <id>`. `snap --only` renders one shot while sibling files are half-written, so scene agents run in parallel freely.
 
 Each scene brief names the files the agent owns, the shared-geometry tables that bind it, and the scene file that owns the canonical progress glyph.
 
@@ -165,7 +165,7 @@ Each scene brief names the files the agent owns, the shared-geometry tables that
 **retro:** each scene agent also reads `templates/art-bible-retro.md` (as the film's `docs/art-bible.md`) and `reference/retro-display.md`. A scene draws into `FILM.native()` and presents it with `FILM.presentNearest` or `FILM.crt.present`, whichever the timeline names. All text is pixel text from `FILM.retro.pxtext`. The brief names the G1 to G4 rows the shot must match.
 `FILM.native()` returns the same buffer every frame and never clears it. Paint all 320×180 pixels every frame, or last frame's pixels show through transparent sprite corners and the determinism check fails.
 
-Done when: every shot's contact sheet has been eyeballed and judged on-brief, and the gate is green.
+Done when: every shot's contact sheet has been eyeballed and judged on-brief, `node tools/motion.cjs` shows no STILL span the storyboard did not ask for, and the gate is green.
 
 ### 8. Music
 
@@ -185,7 +185,7 @@ Start with the whole film on one sheet: `node tools/snap.cjs --samples 24 --shee
 
 **retro:** the gate already checks the NES rules (palette, pixels, sprite colours, sound). Critics judge what a gate cannot: can each shot be read on a phone, is the hero easy to find, and is the pixel text large enough.
 
-Then review every shot on rendered frames: fresh contact sheets, critic subagents scoring composition, faithfulness to the storyboard, motion and density. Critics **measure** ratio-critical geometry in pixels against the art bible (band fractions, thirds, safe-area arithmetic, shared-geometry positions) rather than judging by eye alone, and snap both sides of every match cut to compare.
+Then review every shot on rendered frames: fresh contact sheets, critic subagents scoring composition, faithfulness to the storyboard, motion and density. Motion is judged on evidence, not on stills alone: give the motion critic the `node tools/motion.cjs` report and a strip of consecutive frames around each shot's peak, and have it score each shot against `reference/motion.md` (verb, peak, afterlife, tempo contrast, anticipation, stagger, impact). A STILL span, a FLAT shot or a MISSED CUE is a P2 unless the storyboard asked for it. Critics **measure** ratio-critical geometry in pixels against the art bible (band fractions, thirds, safe-area arithmetic, shared-geometry positions) rather than judging by eye alone, and snap both sides of every match cut to compare.
 
 Fix in waves — prioritised briefs (P1 first, each citing evidence frames), file ownership (resume the owning agent rather than spawning a fresh one), re-snap after every fix. The director spot-checks every P1 fix on fresh frames. Spot-check determinism by snapping the same frames in two different orders and comparing file hashes.
 

@@ -452,7 +452,7 @@
     postShot(ctx, shot, def, T);
   }
 
-  // fade, iris and wipe: A is the outgoing shot, B the incoming one, p in (0, 1) exclusive.
+  // fade, iris, wipe, push and zoom: A is the outgoing shot, B the incoming one, p in (0, 1) exclusive.
   function composite(ctx, A, B, tr, p) {
     resetCtx(ctx, true);
     const w = ctx.canvas.width;
@@ -486,6 +486,35 @@
         ctx.drawImage(B, 0, 0);
         break;
       }
+      case 'push': {
+        // B shoves A off frame in the travel direction, with a short smear while the move is fast
+        const dir = tr.dir || 'left';
+        const sx = dir === 'left' ? -1 : dir === 'right' ? 1 : 0;
+        const sy = dir === 'up' ? -1 : dir === 'down' ? 1 : 0;
+        const L = sx ? w : h;
+        const speed = 4 * Math.min(p, 1 - p); // 0 at the ends, 1 mid-move
+        resetCtx(ctx, true);
+        // the solid pair first, then two fainter copies trailing behind it: the smear sits on top
+        for (let g = 0; g <= 2; g++) {
+          const lag = g * 0.035 * speed;
+          const d = Math.max(0, e - lag) * L;
+          ctx.globalAlpha = g ? 0.22 * speed : 1;
+          ctx.drawImage(A, sx * d, sy * d);
+          ctx.drawImage(B, sx * (d - L), sy * (d - L));
+        }
+        break;
+      }
+      case 'zoom': {
+        // zoom-through: A blows up past the lens about (x, y) and fades, uncovering B at full frame
+        const cx = (tr.x != null ? tr.x : FILM.W / 2) * (w / FILM.W);
+        const cy = (tr.y != null ? tr.y : FILM.H / 2) * (w / FILM.W);
+        resetCtx(ctx, true);
+        ctx.drawImage(B, 0, 0);
+        const sa = 1 + 1.4 * e;
+        ctx.globalAlpha = 1 - e;
+        ctx.drawImage(A, cx - cx * sa, cy - cy * sa, w * sa, h * sa);
+        break;
+      }
       default:
         ctx.drawImage(B, 0, 0);
     }
@@ -495,7 +524,7 @@
   // Registered transition hooks: FILM.transitions[kind] = (ctx, prev, shot, T, k, n) => false | other.
   // Returning exactly false (or no hook) runs the built-in kind.
   FILM.transitions = {};
-  const KINDS = { cut: 1, fade: 1, flash: 1, iris: 1, wipe: 1 };
+  const KINDS = { cut: 1, fade: 1, flash: 1, iris: 1, wipe: 1, push: 1, zoom: 1 };
   FILM.TRANSITION_KINDS = Object.keys(KINDS);
 
   /** Draws global time T (seconds) to FILM.canvas. Returns the active shot entry. */
