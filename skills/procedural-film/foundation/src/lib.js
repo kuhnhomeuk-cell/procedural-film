@@ -101,6 +101,115 @@
   lib.seg = (t, t0, t1, e) => easeFn(e)(clamp(invLerp(t0, t1, t)));
 
   // ===========================================================================
+  // Motion (pure functions of t, so they pass the determinism gate; see reference/motion.md)
+  // ===========================================================================
+
+  /**
+   * spring(t, o) : 0..1 settle of a damped spring released at t = 0 (seconds), with real overshoot
+   * and wobble. o.freq in Hz (default 3.2), o.damp 0.05..0.95 (default 0.32; lower wobbles longer).
+   */
+  lib.spring = (t, o = {}) => {
+    if (t <= 0) return 0;
+    const f = o.freq != null ? o.freq : 3.2;
+    const z = clamp(o.damp != null ? o.damp : 0.32, 0.05, 0.95);
+    const w = TAU * f, wd = w * Math.sqrt(1 - z * z);
+    return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + ((z * w) / wd) * Math.sin(wd * t));
+  };
+
+  /**
+   * punch(t, tHit, o) : a decaying kick that starts at 1 on the hit frame and rings down through 0.
+   * Scale it for a hit: `s = 1 + 0.12 * punch(t, B_HIT)`. o.dur seconds to die out (0.4), o.cycles (1.5).
+   */
+  lib.punch = (t, tHit, o = {}) => {
+    const u = t - tHit;
+    if (u < 0) return 0;
+    const dur = o.dur != null ? o.dur : 0.4;
+    if (u >= dur) return 0;
+    const k = u / dur;
+    return Math.pow(1 - k, 2) * Math.cos(k * (o.cycles != null ? o.cycles : 1.5) * TAU);
+  };
+
+  /**
+   * keys(t, frames) : keyframed value. frames = [[t0, v0, ease?], [t1, v1, ease?], ...] sorted by time;
+   * v is a number or an array of numbers; the ease on a key shapes the move into the next key. Holds
+   * the first value before t0 and the last after the final key, so repeating a value makes a hold.
+   */
+  lib.keys = (t, frames) => {
+    const n = frames.length;
+    if (t <= frames[0][0]) return frames[0][1];
+    if (t >= frames[n - 1][0]) return frames[n - 1][1];
+    let i = 0;
+    while (t >= frames[i + 1][0]) i++;
+    const a = frames[i], b = frames[i + 1];
+    const p = easeFn(a[2] || 'inOutCubic')(invLerp(a[0], b[0], t));
+    return Array.isArray(a[1]) ? a[1].map((v, j) => lerp(v, b[1][j], p)) : lerp(a[1], b[1], p);
+  };
+
+  /**
+   * stagger(t, i, n, t0, spread, dur, e) : progress of item i of n when the n starts spread evenly
+   * over `spread` seconds from t0 and each move lasts `dur`. Things that start together look mechanical.
+   */
+  lib.stagger = (t, i, n, t0, spread, dur, e) => {
+    const s = t0 + (n > 1 ? (spread * i) / (n - 1) : 0);
+    return lib.seg(t, s, s + dur, e);
+  };
+
+  /**
+   * shake(t, hits, o) : camera jolt { x, y, rot } summed over impacts, for `lib.camera` offsets.
+   * hits = [tHit, ...] or [[tHit, strength], ...]. o.amp px (18), o.rot radians (0.012),
+   * o.decay seconds (0.35), o.freq Hz (16), o.seed (0). Zero before the first hit and after decay.
+   */
+  lib.shake = (t, hits, o = {}) => {
+    const amp = o.amp != null ? o.amp : 18, rot = o.rot != null ? o.rot : 0.012;
+    const decay = o.decay != null ? o.decay : 0.35, freq = o.freq != null ? o.freq : 16, seed = o.seed || 0;
+    let x = 0, y = 0, r = 0;
+    for (let i = 0; i < hits.length; i++) {
+      const h = hits[i];
+      const th = Array.isArray(h) ? h[0] : h, k = Array.isArray(h) ? h[1] : 1;
+      const u = t - th;
+      if (u < 0 || u >= decay) continue;
+      const e = k * Math.pow(1 - u / decay, 2);
+      const q = u * freq;
+      x += amp * e * noise1(q, seedInt(seed) + i * 3);
+      y += amp * e * noise1(q, seedInt(seed) + i * 3 + 1);
+      r += rot * e * noise1(q, seedInt(seed) + i * 3 + 2);
+    }
+    return { x, y, rot: r };
+  };
+
+  /**
+   * squash(ctx, x, y, s, fn, rot) : draws fn(ctx) stretched by s along the axis at angle rot (0 = vertical)
+   * about the pivot (x, y), squeezed by 1/s across it so the area holds. s > 1 stretches, s < 1 squashes.
+   */
+  lib.squash = (ctx, x, y, s, fn, rot = 0) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.scale(1 / s, s);
+    ctx.rotate(-rot);
+    ctx.translate(-x, -y);
+    let out;
+    try {
+      out = fn(ctx);
+    } finally {
+      ctx.restore();
+    }
+    return out;
+  };
+
+  /**
+   * arcPt(p, a, b, bend) : [x, y] at progress p along a bowed path from a to b. bend is the sag as a
+   * fraction of the distance (0.2 default; negative bows the other way). Living things move in arcs.
+   */
+  lib.arcPt = (p, a, b, bend = 0.2) => {
+    const [ax, ay] = a, [bx, by] = b;
+    const dx = bx - ax, dy = by - ay;
+    const cx = (ax + bx) / 2 - dy * bend, cy = (ay + by) / 2 + dx * bend;
+    const u = 1 - p;
+    return [u * u * ax + 2 * u * p * cx + p * p * bx, u * u * ay + 2 * u * p * cy + p * p * by];
+  };
+
+  // ===========================================================================
   // Hash, rng, noise
   // ===========================================================================
 

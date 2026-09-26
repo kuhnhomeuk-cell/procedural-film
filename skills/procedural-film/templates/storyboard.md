@@ -77,11 +77,12 @@ T <start> to <end>, <mode>, <transition in>.
 
 ### Motion
 
-*Timestamped on the grid: "T 0.500 (beat 2): the wings slam down, outBack over 3 frames". Lead each event so it is visible ON its beat frame.*
+*First line: verb, peak, afterlife (reference/motion.md §1) — "Verb: the shell splits. Peak: T 1.000 (beat 3), the halves fly apart, with the crack cue. Afterlife: shell fragments tumble and settle; the larva's head sways."*
+*Then timestamped on the grid: "T 0.500 (beat 2): the wings slam down, outBack over 3 frames". Name the anticipation before the peak, what is staggered, and what follows through after it. Lead each event so it is visible ON its beat frame. Any hold longer than one beat is written as "hold, deliberate".*
 
 ### Camera
 
-*Static, push-in, pull-back, with zoom factors and easing.*
+*Locked, push-in, pull-back, snap zoom, jolt on impact, drift, parallax — with zoom factors, easing and the beat each move lands on (reference/motion.md §5).*
 
 ### Enter and exit
 
@@ -116,7 +117,7 @@ FILM.TIMELINE = {
       end: 18,
       mode: 'illustrated',            // or 'schematic'
       title: 'Emergence',
-      transitionIn: { kind: 'flash', dur: 0.125 },   // omit for a hard cut; kinds: cut, fade, flash, iris, wipe
+      transitionIn: { kind: 'flash', dur: 0.125 },   // omit for a hard cut; kinds: cut, fade, flash, iris, wipe, push (dir), zoom (x, y)
       brief: 'On the midpoint downbeat a cream flash reveals the adult sliding out…',
     },
     // …one entry per storyboard shot, boundaries on the beat grid, tiling [0, duration]

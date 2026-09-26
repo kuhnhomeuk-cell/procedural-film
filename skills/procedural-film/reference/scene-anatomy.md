@@ -26,6 +26,7 @@ Expect 1000+ lines for a dense shot — density is part of the look (hundreds of
    ```
 
    plus named beat constants with global-T comments: `const B_DIV2 = 1.5; // T 3.0`.
+   For anything past a pop, use the motion helpers on `FILM.lib` rather than hand-rolled curves: `keys` (multi-pose keyframes with holds), `spring` (overshoot and wobble), `punch` (a hit that rings down), `stagger`, `shake` (camera jolt), `squash`, `arcPt`. Recipes in `reference/motion.md` §4.
 8. **`FILM.scene({ id: ID, draw(ctx, tIn, info) {…} })` at the very end.**
 
 ## Draw body discipline

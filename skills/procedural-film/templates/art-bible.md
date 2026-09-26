@@ -220,6 +220,15 @@ Draw-ons use `outExpo` over 6 frames.
 Character motion never eases for longer than one beat, and only camera moves may run slower.
 Motion should feel snappy, never floaty.
 
+### 7.2b Life
+
+Every shot has one verb, a peak frame on a beat with a sound under it, and something still moving after the peak (reference/motion.md §1).
+Big moves are anticipated by 2 to 4 frames in the opposite direction, travel on arcs (`lib.arcPt`), stretch while fast and squash on contact (`lib.squash`).
+Groups never start on one frame; spread their starts over a beat (`lib.stagger`).
+Trailing parts follow through with `lib.spring` started a few frames after the body stops.
+An impact is sold by a squash, a camera jolt (`lib.shake`, 12 to 25 px, gone within 0.4 s) and a ring, all on the same frame.
+No pose holds longer than one beat unless the storyboard marks the hold as deliberate.
+
 ### 7.3 Determinism
 
 Seed every random choice from `lib.hash(shotId, ...)` through `lib.rng`.
