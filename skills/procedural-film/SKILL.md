@@ -185,7 +185,7 @@ Start with the whole film on one sheet: `node tools/snap.cjs --samples 24 --shee
 
 **retro:** the gate already checks the NES rules (palette, pixels, sprite colours, sound). Critics judge what a gate cannot: can each shot be read on a phone, is the hero easy to find, and is the pixel text large enough.
 
-Then review every shot on rendered frames: fresh contact sheets, critic subagents scoring composition, faithfulness to the storyboard, motion and density. Critics **measure** ratio-critical geometry in pixels against the art bible (band fractions, thirds, safe-area arithmetic, shared-geometry positions) rather than judging by eye alone, and snap both sides of every match cut to compare.
+Then review every shot on rendered frames: fresh contact sheets, critic subagents (run them at high effort where the harness lets you set it per subagent, e.g. Claude Code 2.1.292+) scoring composition, faithfulness to the storyboard, motion and density. Critics **measure** ratio-critical geometry in pixels against the art bible (band fractions, thirds, safe-area arithmetic, shared-geometry positions) rather than judging by eye alone, and snap both sides of every match cut to compare.
 
 Fix in waves — prioritised briefs (P1 first, each citing evidence frames), file ownership (resume the owning agent rather than spawning a fresh one), re-snap after every fix. The director spot-checks every P1 fix on fresh frames. Spot-check determinism by snapping the same frames in two different orders and comparing file hashes.
 
