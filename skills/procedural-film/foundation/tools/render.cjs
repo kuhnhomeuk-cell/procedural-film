@@ -28,7 +28,7 @@ const FFMPEG = process.env.FFMPEG || 'ffmpeg'; // ffmpeg on PATH, or set FFMPEG 
 const SR = 48000;
 
 function runFfmpeg(args, { stdin = false } = {}) {
-  const proc = spawn(FFMPEG, args, { stdio: [stdin ? 'pipe' : 'ignore', 'ignore', 'pipe'] });
+  const proc = spawn(FFMPEG, args, { stdio: [stdin ? 'pipe' : 'ignore', 'ignore', 'pipe'], windowsHide: true });
   let err = '';
   proc.stderr.on('data', (d) => (err += d.toString()));
   const done = new Promise((resolve, reject) => {

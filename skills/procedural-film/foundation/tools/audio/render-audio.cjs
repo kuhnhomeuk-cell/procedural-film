@@ -29,7 +29,7 @@ const C = require('../common.cjs');
     const problems = [...pg.loadErrors.map((e) => `${e.file}:${e.line}:${e.col} ${e.message}`), ...pg.pageErrors];
     if (problems.length) throw new Error('load errors:\n  ' + problems.join('\n  '));
     const t0 = Date.now();
-    const BUSES = ['drums', 'bass', 'pad', 'keys', 'bells', 'lead', 'sfx', 'amb'];
+    const BUSES = ['drums', 'perc', 'bass', 'pad', 'keys', 'bells', 'lead', 'sfx', 'amb'];
     let mix = null;
     if (chip) {
       /* a chip score has no buses: render it whole */

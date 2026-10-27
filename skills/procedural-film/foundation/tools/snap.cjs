@@ -48,6 +48,9 @@ async function main() {
       times = times.map((x) => shot.start + x);
     }
     if (!times.length) C.die('--times had no numbers');
+    // Snap to the nearest frame: a typed time is rounded to 3 decimals (10.458 for frame 251 = 10.4583...),
+    // and the renderer floors T * FPS, so without this it drew the frame BEFORE the one asked for.
+    times = times.map((x) => Math.round(x * FPS) / FPS);
   } else if (args.samples) {
     const n = Math.max(1, Math.floor(Number(args.samples)));
     const a = shot ? shot.start : 0;

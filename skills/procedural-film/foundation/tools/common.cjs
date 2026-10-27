@@ -501,7 +501,8 @@ Object.assign(window.__h, {
 const RETRO_KIT = new Set(['pixel.js', 'chip.js', 'crt.js']);
 
 function pageHtml(files, { title = 'tool' } = {}) {
-  const tags = files.map((f) => `<script src="file://${encodeURI(f)}"></script>`).join('\n');
+  // pathToFileURL gives a valid file URL on Windows too ('file://' + 'C:\...' does not load)
+  const tags = files.map((f) => `<script src="${require('url').pathToFileURL(f).href}"></script>`).join('\n');
   const retro = files.some((f) => RETRO_KIT.has(path.basename(f)));
   return `<!doctype html>
 <html><head><meta charset="utf-8"><title>${title}</title>
@@ -547,7 +548,7 @@ async function openPage(browser, files, { scale = 1, prefix = 'page', query = '?
   });
   const pg = { page, info: null, state: null, loadErrors: [], pageErrors, consoleErrors, tmpFile };
   pg.reopen = async () => {
-    await page.goto('file://' + tmpFile + query, { waitUntil: 'load' });
+    await page.goto(require('url').pathToFileURL(tmpFile).href + query, { waitUntil: 'load' });
     pg.loadErrors = await page.evaluate(() => window.__loadErrors);
     pg.state = await page.evaluate(() => ({
       hasFilm: typeof window.FILM === 'object',
